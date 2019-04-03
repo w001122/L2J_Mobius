@@ -14,23 +14,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package quests.not_done;
-
-import com.l2jmobius.Config;
-import com.l2jmobius.gameserver.model.quest.Quest;
-
 /**
+ * Simple implementations of missing quests until made properly.
  * @author Mobius
  */
-public class Q10529_IvoryTowersResearchFloatingSeaJournal extends Quest
-{
-	private static final int START_NPC = 33846;
-	
-	public Q10529_IvoryTowersResearchFloatingSeaJournal()
-	{
-		super(10529);
-		addStartNpc(START_NPC);
-		addTalkId(START_NPC);
-		addCondMinLevel(Config.PLAYER_MAXIMUM_LEVEL, getNoQuestMsg(null));
-	}
-}
+package quests.custom;
