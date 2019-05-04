@@ -38,16 +38,11 @@ import org.l2jmobius.loginserver.network.serverpackets.LoginFail.LoginFailReason
 import org.l2jmobius.loginserver.network.serverpackets.LoginOk;
 import org.l2jmobius.loginserver.network.serverpackets.ServerList;
 
-/**
- * Format: x 0 (a leading null) x: the rsa encrypted block with the login an password.
- */
-public class RequestAuthLogin implements IIncomingPacket<LoginClient>
+public class RequestCmdLogin implements IIncomingPacket<LoginClient>
 {
-	private static Logger LOGGER = Logger.getLogger(RequestAuthLogin.class.getName());
+	private static Logger LOGGER = Logger.getLogger(RequestCmdLogin.class.getName());
 	
-	private final byte[] _raw1 = new byte[128];
-	private final byte[] _raw2 = new byte[128];
-	private boolean _newAuthMethod = false;
+	private final byte[] _raw = new byte[128];
 	
 	private String _user;
 	private String _password;
@@ -55,16 +50,10 @@ public class RequestAuthLogin implements IIncomingPacket<LoginClient>
 	@Override
 	public boolean read(LoginClient client, PacketReader packet)
 	{
-		if (packet.getReadableBytes() >= 256)
+		if (packet.getReadableBytes() >= 128)
 		{
-			_newAuthMethod = true;
-			packet.readB(_raw1, 0, _raw1.length);
-			packet.readB(_raw2, 0, _raw2.length);
-			return true;
-		}
-		else if (packet.getReadableBytes() >= 128)
-		{
-			packet.readB(_raw1, 0, _raw1.length);
+			packet.readD();
+			packet.readB(_raw, 0, _raw.length);
 			return true;
 		}
 		return false;
@@ -73,21 +62,17 @@ public class RequestAuthLogin implements IIncomingPacket<LoginClient>
 	@Override
 	public void run(LoginClient client)
 	{
-		if (Config.ENABLE_CMD_LINE_LOGIN && Config.ONLY_CMD_LINE_LOGIN)
+		if (!Config.ENABLE_CMD_LINE_LOGIN)
 		{
 			return;
 		}
 		
-		byte[] decrypted = new byte[_newAuthMethod ? 256 : 128];
+		byte[] decrypted = new byte[128];
 		try
 		{
 			final Cipher rsaCipher = Cipher.getInstance("RSA/ECB/nopadding");
 			rsaCipher.init(Cipher.DECRYPT_MODE, client.getScrambledKeyPair().getPrivateKey());
-			rsaCipher.doFinal(_raw1, 0, 128, decrypted, 0);
-			if (_newAuthMethod)
-			{
-				rsaCipher.doFinal(_raw2, 0, 128, decrypted, 128);
-			}
+			rsaCipher.doFinal(_raw, 0, 128, decrypted, 0);
 		}
 		catch (GeneralSecurityException e)
 		{
@@ -97,16 +82,8 @@ public class RequestAuthLogin implements IIncomingPacket<LoginClient>
 		
 		try
 		{
-			if (_newAuthMethod)
-			{
-				_user = new String(decrypted, 0x4E, 50).trim() + new String(decrypted, 0xCE, 14).trim();
-				_password = new String(decrypted, 0xDC, 16).trim();
-			}
-			else
-			{
-				_user = new String(decrypted, 0x5E, 14).trim();
-				_password = new String(decrypted, 0x6C, 16).trim();
-			}
+			_user = new String(decrypted, 0x40, 14).trim();
+			_password = new String(decrypted, 0x60, 16).trim();
 		}
 		catch (Exception e)
 		{
