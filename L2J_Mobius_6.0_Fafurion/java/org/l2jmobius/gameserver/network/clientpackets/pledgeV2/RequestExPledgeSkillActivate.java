@@ -17,26 +17,23 @@
 package org.l2jmobius.gameserver.network.clientpackets.pledgeV2;
 
 import org.l2jmobius.commons.network.PacketReader;
-import org.l2jmobius.gameserver.data.xml.impl.ClanMasteryData;
 import org.l2jmobius.gameserver.model.actor.instance.PlayerInstance;
 import org.l2jmobius.gameserver.model.clan.Clan;
-import org.l2jmobius.gameserver.model.holders.ClanMasteryHolder;
-import org.l2jmobius.gameserver.model.skills.Skill;
 import org.l2jmobius.gameserver.network.GameClient;
 import org.l2jmobius.gameserver.network.clientpackets.IClientIncomingPacket;
-import org.l2jmobius.gameserver.network.serverpackets.pledgeV2.ExPledgeMasteryInfo;
+import org.l2jmobius.gameserver.network.serverpackets.pledgeV2.ExPledgeSkillInfo;
 
 /**
  * @author Mobius
  */
-public class RequestExPledgeMasterySet implements IClientIncomingPacket
+public class RequestExPledgeSkillActivate implements IClientIncomingPacket
 {
-	private int _masteryId;
+	private int _skillId;
 	
 	@Override
 	public boolean read(GameClient client, PacketReader packet)
 	{
-		_masteryId = packet.readD();
+		_skillId = packet.readD();
 		return true;
 	}
 	
@@ -60,53 +57,62 @@ public class RequestExPledgeMasterySet implements IClientIncomingPacket
 		}
 		
 		// Check if already enabled.
-		if (clan.hasMastery(_masteryId))
+		if (clan.getMasterySkillRemainingTime(_skillId) > 0)
 		{
-			player.sendMessage("This mastery is already available.");
+			clan.removeMasterySkill(_skillId);
 			return;
 		}
 		
 		// Check if it can be learned.
-		if (clan.getTotalDevelopmentPoints() <= clan.getUsedDevelopmentPoints())
+		int previous = 0;
+		int cost = 0;
+		switch (_skillId)
 		{
-			player.sendMessage("Your clan develpment points are not sufficient.");
-			return;
+			case 19538:
+			{
+				previous = 4;
+				cost = 40000;
+				break;
+			}
+			case 19539:
+			{
+				previous = 9;
+				cost = 30000;
+				break;
+			}
+			case 19540:
+			{
+				previous = 11;
+				cost = 50000;
+				break;
+			}
+			case 19541:
+			{
+				previous = 14;
+				cost = 30000;
+				break;
+			}
+			case 19542:
+			{
+				previous = 16;
+				cost = 50000;
+				break;
+			}
 		}
-		final ClanMasteryHolder mastery = ClanMasteryData.getInstance().getClanMastery(_masteryId);
-		if (clan.getLevel() < mastery.getClanLevel())
-		{
-			player.sendMessage("Your clan level is lower than the requirement.");
-			return;
-		}
-		if (clan.getReputationScore() < mastery.getClanReputation())
+		if (clan.getReputationScore() < cost)
 		{
 			player.sendMessage("Your clan reputation is lower than the requirement.");
 			return;
 		}
-		final int previous = mastery.getPreviousMastery();
-		final int previousAlt = mastery.getPreviousMasteryAlt();
-		if (previousAlt > 0)
-		{
-			if (!clan.hasMastery(previous) && !clan.hasMastery(previousAlt))
-			{
-				player.sendMessage("You need to learn a previous mastery.");
-				return;
-			}
-		}
-		else if ((previous > 0) && !clan.hasMastery(previous))
+		if (!clan.hasMastery(previous))
 		{
 			player.sendMessage("You need to learn the previous mastery.");
 			return;
 		}
 		
 		// Learn.
-		clan.takeReputationScore(mastery.getClanReputation(), true);
-		clan.addMastery(mastery.getId());
-		clan.setDevelopmentPoints(clan.getUsedDevelopmentPoints() + 1);
-		for (Skill skill : mastery.getSkills())
-		{
-			clan.addNewSkill(skill);
-		}
-		player.sendPacket(new ExPledgeMasteryInfo(player));
+		clan.takeReputationScore(cost, true);
+		clan.addMasterySkill(_skillId);
+		player.sendPacket(new ExPledgeSkillInfo(_skillId, 1, 1296000, 2));
 	}
 }
