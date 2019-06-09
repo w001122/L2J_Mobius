@@ -24,38 +24,37 @@ import org.l2jmobius.Config;
 import org.l2jmobius.commons.concurrent.ThreadPool;
 import org.l2jmobius.commons.util.Rnd;
 import org.l2jmobius.gameserver.ai.CtrlIntention;
-import org.l2jmobius.gameserver.model.actor.Attackable;
-import org.l2jmobius.gameserver.model.actor.instance.NpcInstance;
+import org.l2jmobius.gameserver.model.actor.Npc;
 
 /**
  * @author Mobius
  */
-public class RandomAnimationManager
+public class RandomAnimationTaskManager
 {
-	private static final Map<NpcInstance, Long> PENDING_ANIMATIONS = new ConcurrentHashMap<>();
+	private static final Map<Npc, Long> PENDING_ANIMATIONS = new ConcurrentHashMap<>();
 	
-	public RandomAnimationManager()
+	public RandomAnimationTaskManager()
 	{
 		ThreadPool.scheduleAtFixedRate(() ->
 		{
 			final long time = System.currentTimeMillis();
-			for (Entry<NpcInstance, Long> entry : PENDING_ANIMATIONS.entrySet())
+			for (Entry<Npc, Long> entry : PENDING_ANIMATIONS.entrySet())
 			{
 				if (time > entry.getValue())
 				{
-					final NpcInstance npc = entry.getKey();
+					final Npc npc = entry.getKey();
 					if (!npc.isInActiveRegion())
 					{
 						continue;
 					}
 					
 					// Cancel further animation schedules until intention is changed to ACTIVE again.
-					if ((npc instanceof Attackable) && (npc.getAI().getIntention() != CtrlIntention.AI_INTENTION_ACTIVE))
+					if (npc.isAttackable() && (npc.getAI().getIntention() != CtrlIntention.AI_INTENTION_ACTIVE))
 					{
 						continue;
 					}
 					
-					if (!npc.isDead() && !npc.isStunned() && !npc.isSleeping() && !npc.isParalyzed())
+					if (!npc.isDead() && !npc.hasBlockActions())
 					{
 						npc.onRandomAnimation(Rnd.get(2, 3));
 					}
@@ -66,7 +65,7 @@ public class RandomAnimationManager
 		}, 0, 1000);
 	}
 	
-	public void add(NpcInstance npc)
+	public void add(Npc npc)
 	{
 		if (npc.hasRandomAnimation())
 		{
@@ -74,18 +73,18 @@ public class RandomAnimationManager
 		}
 	}
 	
-	public void remove(NpcInstance npc)
+	public void remove(Npc npc)
 	{
 		PENDING_ANIMATIONS.remove(npc);
 	}
 	
-	public static RandomAnimationManager getInstance()
+	public static RandomAnimationTaskManager getInstance()
 	{
 		return SingletonHolder.INSTANCE;
 	}
 	
 	private static class SingletonHolder
 	{
-		protected static final RandomAnimationManager INSTANCE = new RandomAnimationManager();
+		protected static final RandomAnimationTaskManager INSTANCE = new RandomAnimationTaskManager();
 	}
 }
